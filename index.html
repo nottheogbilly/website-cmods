@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="style.css">
+        <title>CMods - Home</title>
+        <style>
+            .logo a {
+                font-size: 1.8rem;
+                font-weight: bold;
+                color: inherit;
+                text-decoration: none;
+            }
+            .download-btn {
+                display: inline-block;
+                margin: 16px 0 8px;
+                padding: 12px 24px;
+                background-color: #2ea043;
+                color: #ffffff;
+                text-decoration: none;
+                font-weight: bold;
+                border-radius: 6px;
+            }
+            .download-btn:hover {
+                background-color: #268638;
+            }
+            .version-info {
+                font-size: 0.9rem;
+                opacity: 0.8;
+                margin-bottom: 24px;
+            }
+            .install-steps {
+                padding-left: 20px;
+                line-height: 1.6;
+            }
+        </style>
+    </head>
+    <body>
+        <nav class="navbar">
+            <div class="logo"><a href="/">CMods</a></div>
+            <ul class="nav-links">
+                <li><a href="/mods">Browse Mods</a></li>
+                <li><a href="/api">API Docs</a></li>
+                <li><a href="/about">About</a></li>
+            </ul>
+        </nav>
+
+        <main class="content">
+            <h1>Download CMods</h1>
+            <p>Get the Lua mod loader for BlocksC V5.</p>
+
+            <a href="/releases/v1.zip" class="download-btn" download>Download v1 (.zip)</a>
+            <p class="version-info">Latest release: <strong>v1</strong> • Supports <strong>BlocksC V5</strong></p>
+
+            <h2>How to Install</h2>
+            <ol class="install-steps">
+                <li>Download <code>v1.zip</code> using the button above.</li>
+                <li>Extract the archive.</li>
+                <li>Open <code>install.exe</code> or <code>install</code> (depending on your platform) to install!</li>
+            </ol>
+        </main>
+    </body>
+</html>
