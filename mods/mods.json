@@ -1,10 +1,10 @@
 [
   {
-    "name": "Example Mod",
-    "author": "Yes.",
+    "name": "Example Mod.",
+    "author": "BillySquared",
     "version": "v1.0",
     "gameVersion": "v5.0",
-    "description": "Excuse me sir, there must be someone you've confused me for",
-    "downloadUrl": "/mods/example-mod.zip"
+    "description": "This mod is a example, it prints to output.",
+    "downloadUrl": "/mods/example.zip"
   }
 ]

@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="style.css">
+        <title>API Docs - CMods!</title>
+        <style>
+            .logo a {
+                font-size: 1.8rem;
+                font-weight: bold;
+                color: inherit;
+                text-decoration: none;
+            }
+            .doc-section {
+                margin-bottom: 40px;
+            }
+            pre {
+                background-color: #161b22;
+                border: 1px solid #30363d;
+                border-radius: 6px;
+                padding: 16px;
+                overflow-x: auto;
+                margin: 12px 0;
+                line-height: 1.5;
+            }
+            pre code {
+                background: none;
+                padding: 0;
+                color: #e6edf3;
+                font-size: 0.9rem;
+            }
+            .api-item {
+                border-left: 3px solid #2ea043;
+                padding-left: 14px;
+                margin: 18px 0;
+            }
+            .api-item h3 {
+                font-size: 1.1rem;
+                margin-bottom: 4px;
+                color: #ffffff;
+            }
+            .doc-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin: 16px 0;
+                font-size: 0.9rem;
+            }
+            .doc-table th, .doc-table td {
+                border: 1px solid #30363d;
+                padding: 10px 12px;
+                text-align: left;
+            }
+            .doc-table th {
+                background-color: #161b22;
+                color: #ffffff;
+            }
+            .doc-list {
+                padding-left: 20px;
+                line-height: 1.7;
+                margin-top: 8px;
+            }
+            .note-box {
+                background-color: #161b22;
+                border: 1px solid #30363d;
+                border-left: 4px solid #d29922;
+                border-radius: 6px;
+                padding: 12px 16px;
+                margin: 16px 0;
+                font-size: 0.95rem;
+            }
+        </style>
+    </head>
+    <body>
+        <nav class="navbar">
+            <div class="logo"><a href="/">CMods</a></div>
+            <ul class="nav-links">
+                <li><a href="/mods">Browse Mods</a></li>
+                <li><a href="/api">API Docs</a></li>
+                <li><a href="/about">About</a></li>
+            </ul>
+        </nav>
+
+        <main class="content">
+            <h1>CMods Lua API Docs</h1>
+            <p>Complete reference for creating Lua scripts, custom parts, HUD buttons, and ImGui windows for <strong>BlocksC</strong>.</p>
+
+            <div class="note-box">
+                <strong>Platform Support:</strong> On Linux, full Lua scripting, ImGui windows, HUD buttons, and asset overrides are supported. On Windows, only asset overrides and <code>world/parts.json</code> are supported.
+            </div>
+
+            <!-- SECTION 1 -->
+            <section class="doc-section">
+                <h2>1. How Mods Run</h2>
+                <p>CMods loads <code>.zip</code> mods from <code><gameDir>/mods/</code>. On every launch, it builds a clean staging tree (<code>.cmods/staging/</code>) without ever modifying your original <code>blocksC</code> executable:</p>
+                <ol class="doc-list">
+                    <li>Overlays mod files onto a hardlinked copy of the game assets.</li>
+                    <li>Merges <code>world/parts.json</code> part definitions into the staged scene (<code>assets/default.json</code>).</li>
+                    <li>Patches the staged executable to run Lua at boot and registers C bindings (<code>destroy</code>, <code>clonepart</code>, <code>_uiBegin</code>, <code>_uiEnd</code>, <code>_uiText</code>, <code>_uiButton</code>).</li>
+                    <li>Appends the mod runtime and all mod scripts to the staged <code>assets/corescripts/main.lua</code>.</li>
+                </ol>
+                <p>Each mod's <code>scripts/init.lua</code> executes inside a <code>pcall</code> at boot. If a mod errors, CMods logs <code>[CMods] mod '<id>' failed: …</code> and the game continues running.</p>
+            </section>
+
+            <!-- SECTION 2 -->
+            <section class="doc-section">
+                <h2>2. Mod Package Structure & Manifest</h2>
+                <p>Package your mod as a <code>.zip</code> file in the <code>mods/</code> folder:</p>
+                <pre><code>MyMod.zip
+├── mod.json            # Required manifest
+├── scripts/
+│   ├── init.lua        # Entry point (runs at boot)
+│   └── helpers.lua     # Optional modules loaded via mod.require()
+├── assets/             # Hardlinked into staging; text files readable via mod.asset()
+├── world/parts.json    # Optional parts spawned into the scene at boot
+└── hud.json            # Optional buttons added to the CMods HUD window</code></pre>
+
+                <h3><code>mod.json</code> Manifest</h3>
+                <pre><code>{
+  "id": "hello-mod",
+  "name": "Hello Mod",
+  "version": "1.0.0",
+  "author": "you",
+  "description": "Example CMods mod",
+  "order": 100
+}</code></pre>
+                <table class="doc-table">
+                    <thead>
+                        <tr>
+                            <th>Field</th>
+                            <th>Type</th>
+                            <th>Default</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>id</code></td>
+                            <td>string</td>
+                            <td>zip name</td>
+                            <td>Sanitized identifier used by <code>enable</code>/<code>disable</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>name</code></td>
+                            <td>string</td>
+                            <td><code>id</code></td>
+                            <td>Display name shown in the CMods window</td>
+                        </tr>
+                        <tr>
+                            <td><code>version</code></td>
+                            <td>string</td>
+                            <td><code>"?"</code></td>
+                            <td>Mod version string</td>
+                        </tr>
+                        <tr>
+                            <td><code>author</code></td>
+                            <td>string</td>
+                            <td><code>""</code></td>
+                            <td>Author name</td>
+                        </tr>
+                        <tr>
+                            <td><code>description</code></td>
+                            <td>string</td>
+                            <td><code>""</code></td>
+                            <td>Short description</td>
+                        </tr>
+                        <tr>
+                            <td><code>order</code></td>
+                            <td>number</td>
+                            <td><code>100</code></td>
+                            <td>Lower numbers load first</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p>You can also override load order or disable mods globally in <code><gameDir>/cmods.json</code>:</p>
+                <pre><code>{
+  "disabled": ["old-mod"],
+  "order": ["my-mod", "other-mod"]
+}</code></pre>
+            </section>
+
+            <!-- SECTION 3 -->
+            <section class="doc-section">
+                <h2>3. The <code>mod</code> Table (Modules & Assets)</h2>
+                <p>Passed as the second argument to <code>init.lua</code> and any module loaded via <code>mod.require</code>.</p>
+                <table class="doc-table">
+                    <thead>
+                        <tr>
+                            <th>Member</th>
+                            <th>Returns / Type</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>mod.id</code> / <code>mod.name</code> / <code>mod.version</code></td>
+                            <td><code>string</code></td>
+                            <td>Metadata from your <code>mod.json</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>mod.dir</code></td>
+                            <td><code>string</code></td>
+                            <td>Staged path (<code>"assets/corescripts/mods/<id>/"</code>)</td>
+                        </tr>
+                        <tr>
+                            <td><code>mod.asset(name)</code></td>
+                            <td><code>string | nil</code></td>
+                            <td>Reads a text file from <code>assets/<name></code> (max 64 KB per file, 512 KB total)</td>
+                        </tr>
+                        <tr>
+                            <td><code>mod.assetNames()</code></td>
+                            <td><code>table</code></td>
+                            <td>Sorted list of bundled text asset paths</td>
+                        </tr>
+                        <tr>
+                            <td><code>mod.require(name)</code></td>
+                            <td><code>any</code></td>
+                            <td>Loads and caches <code>scripts/<name>.lua</code> (e.g. <code>mod.require("ui/widget")</code>)</td>
+                        </tr>
+                        <tr>
+                            <td><code>mod.hudOnClick(name, fn)</code></td>
+                            <td><code>nil</code></td>
+                            <td>Binds a click callback to a button ID defined in <code>hud.json</code></td>
+                        </tr>
+                        <tr>
+                            <td><code>mod.ui</code></td>
+                            <td><code>table</code></td>
+                            <td>Persistent ImGui window API (<code>window</code>, <code>text</code>, <code>button</code>)</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Example: Splitting Code into Modules & Reading Assets</h3>
+                <pre><code>-- scripts/helpers.lua
+local M = {}
+function M.greet(modName)
+    return "[" .. modName .. "] Ready!"
+end
+return M</code></pre>
+                <pre><code>-- scripts/init.lua
+local helpers = mod.require("helpers")
+print(helpers.greet(mod.name))
+
+-- Read bundled text file from assets/notes.txt
+local notes = mod.asset("notes.txt")
+if notes then
+    print("Loaded asset: " .. notes)
+end</code></pre>
+            </section>
+
+            <!-- SECTION 4 -->
+            <section class="doc-section">
+                <h2>4. Scene Parts: <code>world/parts.json</code> & <code>obj</code></h2>
+                <p>To spawn new parts at game start, declare them in <code>world/parts.json</code>. They are merged into the scene before Lua boots.</p>
+                <pre><code>[
+  {
+    "name": "TargetBlock",
+    "shape": "Box",
+    "position": [-7.0, 6.0, -10.0],
+    "rotation": [0.0, 0.0, 0.0],
+    "scale": [1.5, 1.5, 1.5],
+    "color": [0.85, 0.15, 0.15],
+    "anchored": true,
+    "transparency": 1.0,
+    "reflectiveness": 0.0
+  }
+]</code></pre>
+
+                <h3>Querying, Cloning & Destroying Parts via <code>obj</code></h3>
+                <p><code>obj</code> is a read-only boot snapshot of the workspace. Lookups are case-insensitive.</p>
+                <pre><code>-- List all unique part names in the scene
+local parts = obj:list()
+print("Total unique parts: " .. #parts)
+
+-- Case-insensitive lookup (both lines find the same part)
+local p1 = obj.targetblock
+local p2 = obj.get("TARGETBLOCK")
+
+-- Clone a part (creates "TargetBlockClone", "TargetBlockClone2", etc.)
+if obj.John then
+    local copy = obj.John:Clone()
+    if copy then
+        print("Cloned as: " .. copy.name)
+        -- Re-read from obj if you need the live wrapper reference
+        local ref = obj[copy.name]
+    end
+end
+
+-- Destroy a part from the running engine
+if obj.TargetBlock and obj.TargetBlock:Destroy() then
+    print("TargetBlock removed!")
+end</code></pre>
+            </section>
+
+            <!-- SECTION 5 -->
+            <section class="doc-section">
+                <h2>5. Persistent ImGui Windows (<code>ui</code> API)</h2>
+                <p>Register persistent windows at boot using <code>mod.ui.window</code> (or global <code>ui.window</code>). The draw function runs <strong>once per frame</strong> inside a <code>pcall</code>.</p>
+
+                <div class="api-item">
+                    <h3><code>mod.ui.window(id, title, drawFn)</code></h3>
+                    <p>Registers a persistent window wrapped in <code>ImGui::Begin(title)</code> / <code>ImGui::End()</code>.</p>
+                </div>
+                <div class="api-item">
+                    <h3><code>ui.text(str)</code> & <code>ui.button(label)</code></h3>
+                    <p>Call these only inside your <code>drawFn</code>. <code>ui.button</code> returns <code>true</code> on the frame it is clicked.</p>
+                </div>
+
+                <h3>Example: Interactive Part Spawner Window</h3>
+                <pre><code>-- scripts/init.lua
+local cloneCount = 0
+local statusMsg = "Idle"
+
+mod.ui.window("spawner-ui", "Part Spawner", function()
+    ui.text("Unique parts in scene: " .. #obj:list())
+    ui.text("Clones created: " .. cloneCount)
+    ui.text("Status: " .. statusMsg)
+
+    if ui.button("Clone Green Part") then
+        if obj.green then
+            local copy = obj.green:Clone()
+            if copy then
+                cloneCount = cloneCount + 1
+                statusMsg = "Created " .. copy.name
+            else
+                statusMsg = "Clone failed (engine part capacity full)"
+            end
+        else
+            statusMsg = "Part 'green' not found"
+        end
+    end
+
+    if ui.button("Destroy Red Part") then
+        if obj.red and obj.red:Destroy() then
+            statusMsg = "Destroyed red part"
+        else
+            statusMsg = "Red part already gone"
+        end
+    end
+end)</code></pre>
+            </section>
+
+            <!-- SECTION 6 -->
+            <section class="doc-section">
+                <h2>6. Built-in HUD Buttons (<code>hud.json</code>)</h2>
+                <p>If you just want quick buttons inside the built-in <strong>CMods</strong> mod-list window without creating a separate window, declare them in <code>hud.json</code> and bind handlers at boot:</p>
+                <pre><code>// hud.json
+{
+  "buttons": [
+    { "id": "poke", "label": "Poke Demo!" },
+    { "id": "clone", "label": "Clone John!" }
+  ]
+}</code></pre>
+                <pre><code>-- scripts/init.lua
+mod.hudOnClick("poke", function()
+    print("[my-mod] Poked! Global button ID: " .. mod.hudButtons["poke"])
+end)
+
+mod.hudOnClick("clone", function()
+    local copy = obj.John and obj.John:Clone()
+    if copy then
+        print("[my-mod] Cloned -> " .. copy.name)
+    end
+end)</code></pre>
+            </section>
+
+            <!-- SECTION 7 -->
+            <section class="doc-section">
+                <h2>7. CLI Commands</h2>
+                <p>Manage mods and launch the game from your terminal:</p>
+                <pre><code>cmods run                 # Launch the game with enabled mods (default)
+cmods stage               # Build .cmods/staging/ without launching
+cmods list                # List discovered mods and enabled/disabled status
+cmods enable <id>         # Enable a mod
+cmods disable <id>        # Disable a mod
+cmods new <id> --package  # Scaffold a new mod folder and zip it into mods/
+cmods --vanilla           # Launch without any mods</code></pre>
+            </section>
+
+            <!-- SECTION 8 -->
+            <section class="doc-section">
+                <h2>8. Important Gotchas</h2>
+                <ul class="doc-list">
+                    <li><strong>Keep draw functions fast:</strong> <code>mod.ui.window</code> callbacks execute every frame; heavy loops inside them will drop game FPS.</li>
+                    <li><strong>Fix UI errors quickly:</strong> If a <code>ui.window</code> draw function throws a Lua error, it prints <code>[CMods] ui '<id>' failed: …</code> every single frame.</li>
+                    <li><strong><code>obj</code> is a snapshot:</strong> Calling <code>part:Clone()</code> updates <code>obj</code> for future lookups, but variables referencing <code>obj</code> from before the clone won't automatically refresh.</li>
+                    <li><strong>Finite clone headroom:</strong> The engine's part vector pre-allocates slots to the next power of two at boot (e.g., 18 parts → 32 slots = 14 clones max). <code>Clone()</code> returns <code>nil</code> once full.</li>
+                    <li><strong>Line-buffered logs:</strong> When redirecting stdout to a file, run with <code>stdbuf -oL ./cmods</code> so <code>print()</code> output appears immediately.</li>
+                </ul>
+            </section>
+        </main>
+    </body>
+</html>
